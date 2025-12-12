@@ -1,10 +1,39 @@
+@import "tailwindcss";
 
-@font-face {
-  font-family: 'opendyslexic';
-  src: url('http://dyslexicfonts.com/fonts/OpenDyslexic-Bold.ttf');
-  font-weight: bold;
+body {
+  font-family: "Geom", sans-serif;
+  font-optical-sizing: auto;
   font-style: normal;
 }
 
-@import "tailwindcss";
+/* StarBorder animations */
+@keyframes star-movement-bottom {
+  0% {
+    transform: translate(0%, 0%);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-100%, 0%);
+    opacity: 0;
+  }
+}
+
+@keyframes star-movement-top {
+  0% {
+    transform: translate(0%, 0%);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(100%, 0%);
+    opacity: 0;
+  }
+}
+
+.animate-star-movement-bottom {
+  animation: star-movement-bottom linear infinite alternate;
+}
+
+.animate-star-movement-top {
+  animation: star-movement-top linear infinite alternate;
+}
 

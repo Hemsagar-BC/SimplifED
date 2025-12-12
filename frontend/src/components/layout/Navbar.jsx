@@ -9,8 +9,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../common/Button';
+import StarBorder from '../common/StarBorder';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { Moon, Sun } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -19,26 +21,30 @@ export default function Navbar() {
   const { currentUser, logout } = useAuth();
   
   return (
-    <nav className={`sticky top-0 z-50 ${isDark ? 'bg-gray-800 shadow-lg' : 'bg-white shadow-md'} transition-colors duration-300`}>
+    <nav className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo section */}
-          {/* Link to home with "EchoNotes" text in primary color, large font */}
           <Link to="/" className="flex items-center gap-2">
-            <span className={`text-2xl font-bold text-primary font-dyslexic`}>🎙️ EchoNotes</span>
+            <span className="text-2xl font-black text-white flex items-center gap-2">
+              
+              <span className="bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">SimplifiED</span>
+            </span>
           </Link>
           
           {/* Desktop navigation links */}
-          {/* Hidden on mobile (md:flex), flex gap-6 */}
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg transition-colors`}>
+          <div className="hidden md:flex items-center gap-8">
+            <Link to="/" className="text-gray-300 hover:text-white font-semibold transition-colors">
               Home
             </Link>
-            <Link to="/dashboard" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg transition-colors`}>
+            <a href="/#features" className="text-gray-300 hover:text-white font-semibold transition-colors">
+              Features
+            </a>
+            <Link to="/dashboard" className="text-gray-300 hover:text-white font-semibold transition-colors">
               Dashboard
             </Link>
-            <Link to="/new-lecture" className={`${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg transition-colors`}>
-              New Lecture
+            <Link to="/about" className="text-gray-300 hover:text-white font-semibold transition-colors">
+              About
             </Link>
           </div>
           
@@ -47,28 +53,34 @@ export default function Navbar() {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-colors duration-300 ${
-                isDark 
-                  ? 'bg-gray-700 text-yellow-400 hover:bg-gray-600' 
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              }`}
+              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors duration-300"
               title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {isDark ? (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l-2.12-2.12a1 1 0 011.414-1.414l2.12 2.12a1 1 0 11-1.414 1.414zM2.05 6.464l2.12 2.12a1 1 0 01-1.414 1.414L.636 7.878a1 1 0 011.414-1.414zM17.657 16.97l-2.12-2.12a1 1 0 011.414-1.414l2.12 2.12a1 1 0 11-1.414 1.414z" clipRule="evenodd" />
-                </svg>
+                <Sun className="w-5 h-5 text-yellow-400" />
               ) : (
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
+                <Moon className="w-5 h-5 text-gray-300" />
               )}
             </button>
             
             {!currentUser ? (
-              <Button variant="primary" onClick={() => console.log('Sign in')}>
-                Sign In
-              </Button>
+              <>
+                <Link to="/login">
+                  <StarBorder
+                    as="div"
+                    color="cyan"
+                    speed="5s"
+                    className="cursor-pointer"
+                  >
+                    Sign In
+                  </StarBorder>
+                </Link>
+                <Link to="/signup">
+                  <button className="px-6 py-2 rounded-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all">
+                    Get Started
+                  </button>
+                </Link>
+              </>
             ) : (
               <div className="relative">
                 <button
@@ -79,7 +91,7 @@ export default function Navbar() {
                       : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
                 >
-                  <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                  <span className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
                     {currentUser.email?.[0].toUpperCase()}
                   </span>
                   <span className="hidden sm:inline">{currentUser.displayName || currentUser.email?.split('@')[0]}</span>
@@ -138,8 +150,14 @@ export default function Navbar() {
             <Link to="/" className={`block ${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg`}>
               Home
             </Link>
+            <a href="/#features" className={`block ${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg`}>
+              Features
+            </a>
             <Link to="/dashboard" className={`block ${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg`}>
               Dashboard
+            </Link>
+            <Link to="/about" className={`block ${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg`}>
+              About
             </Link>
             <Link to="/new-lecture" className={`block ${isDark ? 'text-gray-300 hover:text-white' : 'text-textDark hover:text-primary'} font-dyslexic text-lg`}>
               New Lecture
@@ -155,9 +173,16 @@ export default function Navbar() {
               >
                 {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
               </button>
-              <Button variant="primary" fullWidth onClick={() => console.log('Sign in')}>
-                Sign In
-              </Button>
+              <Link to="/login" className="block mb-2">
+                <button className="w-full px-6 py-2 rounded-lg font-semibold text-white bg-gray-700 hover:bg-gray-600 transition-colors">
+                  Sign In
+                </button>
+              </Link>
+              <Link to="/signup" className="block">
+                <button className="w-full px-6 py-2 rounded-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white transition-all">
+                  Get Started
+                </button>
+              </Link>
             </div>
           </div>
         </div>
