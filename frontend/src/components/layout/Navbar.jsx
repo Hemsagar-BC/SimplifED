@@ -79,7 +79,7 @@ export default function Navbar() {
                       : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
                   }`}
                 >
-                  <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+                  <span className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
                     {currentUser.email?.[0].toUpperCase()}
                   </span>
                   <span className="hidden sm:inline">{currentUser.displayName || currentUser.email?.split('@')[0]}</span>

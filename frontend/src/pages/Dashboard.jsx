@@ -10,7 +10,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen relative bg-black overflow-hidden">
       {/* Silk Background */}
-      <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
+      <div className="fixed inset-0 w-full h-full bg-linear-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
 
       <div className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-0">
         <Silk speed={8} scale={1.5} color="#3B82F6" noiseIntensity={0.7} rotation={0.3} />
@@ -44,9 +44,9 @@ const Dashboard = () => {
             {/* Record Lecture Card */}
             <Link
               to="/record-lecture"
-              className="group relative overflow-hidden rounded-2xl p-8 bg-gradient-to-br from-blue-600 to-blue-700 hover:shadow-2xl hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
+              className="group relative overflow-hidden rounded-2xl p-8 bg-linear-to-br from-blue-600 to-blue-700 hover:shadow-2xl hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/0 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 bg-linear-to-br from-blue-400/0 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="text-6xl mb-4">🎤</div>
                 <h2 className="text-3xl font-bold text-white mb-2">Record Lecture</h2>
@@ -60,9 +60,9 @@ const Dashboard = () => {
             {/* Upload Audio Card */}
             <Link
               to="/upload-audio"
-              className="group relative overflow-hidden rounded-2xl p-8 bg-gradient-to-br from-purple-600 to-purple-700 hover:shadow-2xl hover:shadow-purple-600/50 transition-all duration-300 transform hover:scale-105"
+              className="group relative overflow-hidden rounded-2xl p-8 bg-linear-to-br from-purple-600 to-purple-700 hover:shadow-2xl hover:shadow-purple-600/50 transition-all duration-300 transform hover:scale-105"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/0 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 bg-linear-to-br from-purple-400/0 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
                 <div className="text-6xl mb-4">📁</div>
                 <h2 className="text-3xl font-bold text-white mb-2">Upload Audio</h2>

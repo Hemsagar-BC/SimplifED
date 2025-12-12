@@ -178,7 +178,7 @@ const MindMapVisualization = ({ mindMapData }) => {
   }
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg">
+    <div className="w-full h-full bg-linear-to-br from-gray-900 to-gray-800 rounded-lg">
       <ReactFlow
         nodes={nodes}
         edges={edges}

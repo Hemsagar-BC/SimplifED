@@ -17,6 +17,8 @@ const RecordLecture = () => {
   const [aiResults, setAiResults] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [language, setLanguage] = useState('en-US');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
@@ -25,6 +27,7 @@ const RecordLecture = () => {
   const streamRef = useRef(null);
   const currentTranscriptRef = useRef('');
   const recordingStartTimeRef = useRef(null);
+  const audioPlayerRef = useRef(null);
 
   // Initialize Web Speech API
   useEffect(() => {
@@ -134,6 +137,19 @@ const RecordLecture = () => {
       console.log('🧠 Mind Map content:', data.mindMap);
       
       setAiResults(data);
+      
+      // Handle audio from backend (ElevenLabs TTS)
+      if (data.audio && data.audioFormat) {
+        try {
+          const audioBlob = new Blob([Buffer.from(data.audio, 'base64')], { type: data.audioFormat });
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+          console.log('🔊 Audio TTS ready for playback');
+        } catch (audioError) {
+          console.error('❌ Error creating audio blob:', audioError);
+        }
+      }
+      
       console.log('✨ AI Results state updated');
     } catch (error) {
       console.error('❌ Error processing segment:', error.message);
@@ -278,10 +294,11 @@ const RecordLecture = () => {
         title: `Lecture - ${new Date().toLocaleDateString()}`,
         type: 'recorded',
         transcript: transcript,
-        simpleSummary: results?.simpleSummary || '',
-        stepByStepExplanation: results?.stepByStepExplanation || '',
+        simplifiedExplanation: results?.simplifiedExplanation || '',
         summary: results?.summary || '',
         mindMap: results?.mindMap || { mainTopic: 'No content', branches: [] },
+        audio: results?.audio || null,
+        audioFormat: results?.audioFormat || null,
         duration: duration,
         createdAt: serverTimestamp(),
         status: 'processed',
@@ -303,6 +320,28 @@ const RecordLecture = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Play/Pause audio
+  const handlePlayAudio = async () => {
+    try {
+      if (!audioPlayerRef.current) return;
+      
+      if (isPlayingAudio) {
+        audioPlayerRef.current.pause();
+        setIsPlayingAudio(false);
+      } else {
+        await audioPlayerRef.current.play();
+        setIsPlayingAudio(true);
+      }
+    } catch (error) {
+      console.error('❌ Error playing audio:', error);
+    }
+  };
+
+  // Handle audio end
+  const handleAudioEnd = () => {
+    setIsPlayingAudio(false);
+  };
+
   // Debug: Check API availability on mount
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -316,7 +355,7 @@ const RecordLecture = () => {
   return (
     <div className="min-h-screen relative bg-black overflow-hidden">
       {/* Silk Background */}
-      <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
+      <div className="fixed inset-0 w-full h-full bg-linear-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
 
       <div className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-0">
         <Silk speed={8} scale={1.5} color="#3B82F6" noiseIntensity={0.7} rotation={0.3} />
@@ -346,7 +385,7 @@ const RecordLecture = () => {
           {/* Main Container */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-fit lg:h-[600px]">
             {/* Left Side - Live Transcription */}
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6 flex flex-col">
+            <div className="bg-linear-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6 flex flex-col">
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
                 🎤 Live Transcript
               </h2>
@@ -382,24 +421,26 @@ const RecordLecture = () => {
                 {!isRecording ? (
                   <button
                     onClick={handleStartRecording}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
+                    className="flex-1 px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
                   >
                     🎙️ Start Recording
                   </button>
                 ) : (
-                  <>
-                    <button
-                      onClick={handleStopRecording}
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-red-600/50 transition-all duration-300"
-                    >
-                      ⏹️ Stop Recording
-                    </button>
-                    <div className="px-6 py-3 bg-gray-700/50 rounded-lg flex items-center justify-center text-white font-bold">
-                      {formatTime(recordingTime)}
-                    </div>
-                  </>
+                  <button
+                    onClick={handleStopRecording}
+                    className="flex-1 px-6 py-3 bg-linear-to-r from-red-600 to-red-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-red-600/50 transition-all duration-300"
+                  >
+                    ⏹️ Stop Recording
+                  </button>
                 )}
               </div>
+
+              {/* Recording Time */}
+              {isRecording && (
+                <div className="text-center mb-4">
+                  <p className="text-sm text-gray-400">Recording Time: <span className="text-blue-400 font-bold">{formatTime(recordingTime)}</span></p>
+                </div>
+              )}
 
               {/* Transcript Box */}
               <div className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 overflow-y-auto">
@@ -407,19 +448,36 @@ const RecordLecture = () => {
                   {transcript || (isRecording ? '🎤 Listening... speak now' : '👆 Click "Start Recording" to begin')}
                 </p>
               </div>
-
-              {/* Recording Indicator */}
-              {isRecording && (
-                <div className="mt-4 flex items-center gap-2 justify-center">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-red-300 font-semibold">Recording in progress...</span>
-                </div>
-              )}
             </div>
 
             {/* Right Side - AI Results with Tabs */}
-            <div className="bg-gradient-to-br from-purple-900/80 to-gray-900/80 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 flex flex-col">
+            <div className="bg-linear-to-br from-purple-900/80 to-gray-900/80 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 flex flex-col">
               <h2 className="text-2xl font-bold text-white mb-4">✨ AI-Powered Insights</h2>
+
+              {/* Audio Player - Show when TTS audio is available */}
+              {audioUrl && (
+                <div className="mb-4 bg-linear-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handlePlayAudio}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        isPlayingAudio
+                          ? 'bg-red-600 hover:bg-red-700 text-white'
+                          : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
+                    >
+                      {isPlayingAudio ? '⏸️ Pause' : '▶️ Play Audio'}
+                    </button>
+                    <audio
+                      ref={audioPlayerRef}
+                      src={audioUrl}
+                      onEnded={handleAudioEnd}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-gray-300">🔊 AI Voice Explanation</span>
+                  </div>
+                </div>
+              )}
 
               {/* Tab Navigation */}
               <div className="flex gap-2 mb-6 flex-wrap">
@@ -434,7 +492,7 @@ const RecordLecture = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                       activeTab === tab.id
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/50'
+                        ? 'bg-linear-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/50'
                         : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
                     }`}
                   >
@@ -443,70 +501,69 @@ const RecordLecture = () => {
                 ))}
               </div>
 
-              {/* Content Area */}
-              <div className="flex-1 bg-gray-800/50 border border-gray-700/50 rounded-lg p-4 overflow-y-auto">
-                {isProcessing ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-purple-300 font-semibold">Processing your lecture...</p>
+              {/* Tab Content */}
+              {aiResults ? (
+                <div className="flex-1 overflow-y-auto">
+                  {activeTab === 'simple' && (
+                    <div>
+                      <h3 className="text-lg font-bold text-green-400 mb-3">📄 Simple Explanation</h3>
+                      <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-base">
+                        {aiResults.simplifiedExplanation || 'Stop recording to see dyslexia-friendly explanation...'}
+                      </p>
                     </div>
-                  </div>
-                ) : aiResults ? (
-                  <div>
-                    {activeTab === 'simple' && (
-                      <div>
-                        <h3 className="text-lg font-bold text-green-400 mb-3">📄 Simple Explanation</h3>
-                        <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-base">
-                          {aiResults.simpleSummary || 'Stop recording to see dyslexia-friendly explanation...'}
-                        </p>
-                      </div>
-                    )}
+                  )}
 
-                    {activeTab === 'detailed' && (
-                      <div>
-                        <h3 className="text-lg font-bold text-blue-400 mb-3">🔍 Detailed Steps</h3>
+                  {activeTab === 'detailed' && (
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-400 mb-3">🔍 Detailed Steps</h3>
+                      <div className="text-gray-200 leading-relaxed space-y-2">
+                        {aiResults.simplifiedExplanation?.split('\n').map((step, idx) => (
+                          step.trim() && (
+                            <div key={idx} className="flex gap-3">
+                              <span className="text-blue-400 font-bold shrink-0">{idx + 1}.</span>
+                              <span>{step}</span>
+                            </div>
+                          )
+                        ))}
+                        {!aiResults.simplifiedExplanation && <p>No content yet. Keep recording...</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'mindmap' && (
+                    <div className="h-full">
+                      <MindMapVisualization mindMapData={aiResults.mindMap} />
+                    </div>
+                  )}
+
+                  {activeTab === 'summary' && (
+                    <div>
+                      <h3 className="text-lg font-bold text-emerald-400 mb-3">📝 Summary (Bullet Points)</h3>
+                      <div className="bg-linear-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-500/30 rounded-xl p-5">
                         <div className="text-gray-200 leading-relaxed space-y-2">
-                          {aiResults.stepByStepExplanation?.split('\n').map((step, idx) => (
-                            step.trim() && (
+                          {aiResults.summary?.split('\n').map((point, idx) => (
+                            point.trim() && (
                               <div key={idx} className="flex gap-3">
-                                <span className="text-blue-400 font-bold flex-shrink-0">{idx + 1}.</span>
-                                <span>{step}</span>
+                                <span className="text-emerald-400 text-xl shrink-0">•</span>
+                                <span>{point.trim()}</span>
                               </div>
                             )
                           ))}
-                          {!aiResults.stepByStepExplanation && <p>No content yet. Keep recording...</p>}
+                          {!aiResults.summary && <p>No summary yet. Keep recording...</p>}
                         </div>
                       </div>
-                    )}
-
-                    {activeTab === 'mindmap' && (
-                      <div className="h-[500px]">
-                        <MindMapVisualization mindMapData={aiResults.mindMap} />
-                      </div>
-                    )}
-
-                    {activeTab === 'summary' && (
-                      <div>
-                        <h3 className="text-lg font-bold text-emerald-400 mb-3">📝 Summary</h3>
-                        <div className="bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-500/30 rounded-xl p-5">
-                          <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-lg">
-                            {aiResults.summary || 'No summary yet. Keep recording...'}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-400 text-center">
-                      {isRecording 
-                        ? '🎤 Recording... tabs will populate after you stop'
-                        : 'Start recording to see AI-powered insights here ✨'}
-                    </p>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center flex-1">
+                  <p className="text-gray-400 text-center">
+                    {isRecording 
+                      ? '🎤 Recording... tabs will populate after you stop'
+                      : 'Start recording to see AI-powered insights here ✨'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

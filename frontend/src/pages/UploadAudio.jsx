@@ -143,7 +143,7 @@ const UploadAudio = () => {
   return (
     <div className="min-h-screen relative bg-black overflow-hidden">
       {/* Silk Background */}
-      <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
+      <div className="fixed inset-0 w-full h-full bg-linear-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
 
       <div className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-0">
         <Silk speed={8} scale={1.5} color="#3B82F6" noiseIntensity={0.7} rotation={0.3} />
@@ -173,7 +173,7 @@ const UploadAudio = () => {
           {/* Main Container */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-fit lg:h-[600px]">
             {/* Left Side - File Upload & Transcript */}
-            <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6 flex flex-col">
+            <div className="bg-linear-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6 flex flex-col">
               <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
                 📂 Upload & Process
               </h2>
@@ -213,7 +213,7 @@ const UploadAudio = () => {
                     {!isUploading && !aiResults && (
                       <button
                         onClick={handleProcessAudio}
-                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
+                        className="w-full px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-600/50 transition-all duration-300 transform hover:scale-105"
                       >
                         ⚡ Process Audio
                       </button>
@@ -225,7 +225,7 @@ const UploadAudio = () => {
                       <p className="text-gray-300 mb-3 text-sm">Processing your audio...</p>
                       <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-blue-600 to-purple-600 h-full transition-all duration-300"
+                          className="bg-linear-to-r from-blue-600 to-purple-600 h-full transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }}
                         ></div>
                       </div>
@@ -247,7 +247,7 @@ const UploadAudio = () => {
             </div>
 
             {/* Right Side - AI Results with Tabs */}
-            <div className="bg-gradient-to-br from-purple-900/80 to-gray-900/80 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 flex flex-col">
+            <div className="bg-linear-to-br from-purple-900/80 to-gray-900/80 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 flex flex-col">
               <h2 className="text-2xl font-bold text-white mb-4">✨ AI-Powered Insights</h2>
 
               {/* Tab Navigation */}
@@ -262,7 +262,7 @@ const UploadAudio = () => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                       activeTab === tab.id
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        ? 'bg-linear-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                         : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
                     }`}
                   >
@@ -301,7 +301,7 @@ const UploadAudio = () => {
                           {aiResults.stepByStepExplanation?.split('\n').map((step, idx) => (
                             step.trim() && (
                               <div key={idx} className="flex gap-3">
-                                <span className="text-blue-400 font-bold flex-shrink-0">{idx + 1}.</span>
+                                <span className="text-blue-400 font-bold shrink-0">{idx + 1}.</span>
                                 <span>{step}</span>
                               </div>
                             )
@@ -316,7 +316,7 @@ const UploadAudio = () => {
                         <ul className="space-y-2">
                           {aiResults.clarityNotes?.map((note, idx) => (
                             <li key={idx} className="flex gap-3">
-                              <span className="text-yellow-400 font-bold flex-shrink-0">→</span>
+                              <span className="text-yellow-400 font-bold shrink-0">→</span>
                               <span className="text-gray-200">{note}</span>
                             </li>
                           ))}

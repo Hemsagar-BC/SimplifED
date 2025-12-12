@@ -22,7 +22,7 @@ export default function Landing() {
     <div className="min-h-screen relative bg-black overflow-hidden">
       {/* Silk Background - Covers entire page */}
       {/* Dark base layer */}
-      <div className="fixed inset-0 w-full h-full bg-gradient-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
+      <div className="fixed inset-0 w-full h-full bg-linear-to-br from-black via-blue-950 to-slate-950 pointer-events-none z-0"></div>
       
       {/* Primary Silk layer - Bright Blue */}
       <div className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-0">
@@ -87,7 +87,7 @@ export default function Landing() {
             ) : (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
-                className="w-full sm:w-auto px-8 py-3 md:py-4 rounded-lg font-semibold text-base sm:text-lg md:text-xl transition-all shadow-lg hover:shadow-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                className="w-full sm:w-auto px-8 py-3 md:py-4 rounded-lg font-semibold text-base sm:text-lg md:text-xl transition-all shadow-lg hover:shadow-xl bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
               >
                 Try SimplifiED Now
               </button>

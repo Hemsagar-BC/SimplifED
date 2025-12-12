@@ -80,7 +80,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full border border-gray-800 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-8">
+        <div className="bg-linear-to-r from-blue-600 to-purple-600 px-6 py-8">
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </h2>
@@ -149,7 +149,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl mt-6"
+              className="w-full py-3 bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl mt-6"
             >
               {loading 
                 ? (isSignUp ? 'Creating Account...' : 'Signing In...') 

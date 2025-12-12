@@ -1,203 +1,234 @@
-// Grok AI Service � handles all lecture processing prompts
+/**
+ * Gemini AI Service - Text Processing
+ * 
+ * Handles all AI text processing for dyslexic students:
+ * 1. Generate summary (3-5 key points)
+ * 2. Generate mind map (hierarchical structure)
+ * 3. Simplify text (8th grade reading level for TTS)
+ * 
+ * Uses Google Gemini 1.5 Flash model
+ * Optimized for educational content
+ */
 
-const fetchFn = globalThis.fetch;
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-if (typeof fetchFn !== 'function') {
-  throw new Error('? Fetch API is not available. Run the server on Node.js 18+ to call Grok.');
-}
+class GeminiService {
+  constructor(apiKey) {
+    if (!apiKey) {
+      throw new Error('❌ Gemini API key is required');
+    }
 
-const apiKey = process.env.GROK_API_KEY;
-if (!apiKey) {
-  throw new Error('? GROK_API_KEY is not set in the backend .env file');
-}
+    this.apiKey = apiKey;
+    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.model = this.genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.9,
+        topK: 40,
+        maxOutputTokens: 2048
+      }
+    });
 
-const GROK_API_URL = process.env.GROK_API_URL || 'https://api.x.ai/v1/chat/completions';
-const GROK_MODEL = process.env.GROK_MODEL || 'grok-beta';
-const DEFAULT_SYSTEM_PROMPT = 'You are an assistive AI that helps teachers simplify lecture transcripts for neurodivergent students.';
-
-console.log(`? Grok API key detected (length: ${apiKey.length})`);
-console.log(`? Using Grok model: ${GROK_MODEL}`);
-
-async function callGrok(prompt, { maxTokens = 600, temperature = 0.25, systemPrompt = DEFAULT_SYSTEM_PROMPT } = {}) {
-  const payload = {
-    model: GROK_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt }
-    ],
-    temperature,
-    max_tokens: maxTokens
-  };
-
-  const response = await fetchFn(GROK_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const rawText = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`Grok API ${response.status}: ${rawText}`);
+    console.log('✅ Gemini Service initialized with model: gemini-1.5-flash');
   }
 
-  let data;
-  try {
-    data = JSON.parse(rawText);
-  } catch (parseError) {
-    throw new Error(`Invalid JSON from Grok: ${rawText}`);
-  }
+  /**
+   * Generate a concise summary with key points
+   * Optimized for dyslexic readers (simple language, bullets)
+   */
+  async generateSummary(transcript) {
+    try {
+      console.log('🔄 Generating summary...');
+      
+      // Truncate long transcripts
+      const maxLength = 8000;
+      const text = transcript.length > maxLength 
+        ? transcript.substring(0, maxLength) + '...'
+        : transcript;
 
-  const message = data?.choices?.[0]?.message?.content;
-  if (!message) {
-    throw new Error('Grok API returned an empty response');
-  }
+      const prompt = `You are helping a student with dyslexia understand a lecture.
 
-  return message.trim();
-}
-
-async function generateSimpleSummary(text) {
-  const prompt = `Simplify this lecture text for students with dyslexia.
+Create a summary with 3-5 bullet points from this lecture transcript.
 
 Rules:
-- Use simple words (no jargon)
-- Keep sentences under 15 words
+- Use simple, everyday words (8th grade level)
+- Each bullet: maximum 15 words
+- Start with a bullet point (•)
+- Focus only on MAIN ideas
 - Use active voice
-- Explain technical terms in parentheses
 
-Text: ${text}
-
-Simple summary:`;
-
-  try {
-    console.log('?? Generating simple summary with Grok...');
-    const summary = await callGrok(prompt, { maxTokens: 350 });
-    console.log('? Simple summary generated');
-    return summary;
-  } catch (error) {
-    console.error('? Grok simple summary error:', error.message);
-    return text;
-  }
-}
-
-async function generateStepByStep(text) {
-  const prompt = `Break down this lecture into simple numbered steps for students with dyslexia.
-
-Rules:
-- Start with "Step 1:", "Step 2:", etc.
-- Each step is one clear idea
-- Maximum 15 words per step
-- Use simple language
-
-Text: ${text}
-
-Steps:`;
-
-  try {
-    console.log('?? Generating step-by-step with Grok...');
-    const steps = await callGrok(prompt, { maxTokens: 400 });
-    console.log('? Step-by-step generated');
-    return steps;
-  } catch (error) {
-    console.error('? Grok step-by-step error:', error.message);
-    return 'No steps available';
-  }
-}
-
-async function generateSummary(text) {
-  const prompt = `Create a brief summary of this lecture in 3-5 sentences.
-
-Rules:
-- Each sentence max 15 words
-- Simple, clear language
-- Focus on main message only
-
-Text: ${text}
+Transcript:
+${text}
 
 Summary:`;
 
-  try {
-    console.log('?? Generating lecture summary with Grok...');
-    const summary = await callGrok(prompt, { maxTokens: 400 });
-    console.log('? Summary generated');
-    return summary;
-  } catch (error) {
-    console.error('? Grok summary error:', error.message);
-    return text.substring(0, 200) + '...';
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const summary = response.text().trim();
+
+      console.log('✅ Summary generated');
+      return summary;
+    } catch (error) {
+      console.error('❌ Summary generation error:', error.message);
+      throw error;
+    }
   }
-}
 
-async function generateMindMap(text) {
-  const prompt = `Create a mind map structure from this lecture text.
+  /**
+   * Generate a mind map structure (JSON format)
+   * Visual learning aid for dyslexic students
+   */
+  async generateMindMap(transcript) {
+    try {
+      console.log('🔄 Generating mind map...');
 
-Return ONLY valid JSON in this exact format:
+      const maxLength = 8000;
+      const text = transcript.length > maxLength 
+        ? transcript.substring(0, maxLength) + '...'
+        : transcript;
+
+      const prompt = `You are creating a mind map for a student with dyslexia.
+
+Convert this lecture into a mind map structure.
+
+Rules:
+- Return ONLY valid JSON, no markdown
+- Use simple labels (3-4 words max)
+- 1 central topic + 3-5 main branches + 2-3 sub-branches each
+- Easy to understand (8th grade level)
+- Active phrases
+
+JSON Format (EXACT):
 {
-  "mainTopic": "Main topic in 2-5 words",
+  "title": "Central Topic",
   "branches": [
     {
-      "label": "Branch name (2-4 words)",
+      "label": "Main Branch 1",
       "children": ["Sub-point 1", "Sub-point 2"]
+    },
+    {
+      "label": "Main Branch 2",
+      "children": ["Sub-point 3"]
     }
   ]
 }
 
-Text: ${text}
+Transcript:
+${text}
 
-JSON only:`;
+Return ONLY the JSON:`;
 
-  try {
-    console.log('?? Generating mind map with Grok...');
-    const rawJson = await callGrok(prompt, { maxTokens: 500, temperature: 0.15 });
-    const cleaned = rawJson
-      .replace(/```json\s*/gi, '')
-      .replace(/```/g, '')
-      .trim();
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      let jsonText = response.text().trim();
 
-    const mindMap = JSON.parse(cleaned);
+      // Clean up markdown if present
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-    if (!mindMap.mainTopic || !Array.isArray(mindMap.branches)) {
-      throw new Error('Missing required fields in mind map JSON');
+      const mindMap = JSON.parse(jsonText);
+
+      console.log('✅ Mind map generated:', mindMap.title);
+      return mindMap;
+    } catch (error) {
+      console.error('❌ Mind map generation error:', error.message);
+      // Return fallback structure
+      return {
+        title: 'Lecture Overview',
+        branches: [
+          {
+            label: 'Main Topics',
+            children: ['Key concept 1', 'Key concept 2']
+          }
+        ]
+      };
     }
+  }
 
-    console.log('? Mind map generated:', mindMap.mainTopic);
-    return mindMap;
-  } catch (error) {
-    console.error('? Grok mind map error:', error.message);
-    return {
-      mainTopic: 'Lecture Content',
-      branches: []
-    };
+  /**
+   * Simplify complex text for Text-to-Speech
+   * 8th grade reading level, short sentences
+   * This will be converted to speech by ElevenLabs
+   */
+  async simplifyText(transcript) {
+    try {
+      console.log('🔄 Simplifying text for speech...');
+
+      const maxLength = 8000;
+      const text = transcript.length > maxLength 
+        ? transcript.substring(0, maxLength) + '...'
+        : transcript;
+
+      const prompt = `You are a patient teacher explaining to a student with dyslexia.
+
+Explain the MAIN concept from this lecture in the simplest way possible.
+
+Rules:
+- 8th grade reading level (simple words everyone knows)
+- Maximum 10 words per sentence
+- Short paragraphs (2-3 sentences each)
+- NO jargon or academic words
+- Use active voice
+- Include 1-2 simple examples
+- Total: 150-250 words
+- Make it conversational like talking to a friend
+
+Transcript:
+${text}
+
+Return ONLY the simplified explanation:`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const simplified = response.text().trim();
+
+      // Limit for TTS (5000 chars max per request)
+      const maxChars = 5000;
+      const finalText = simplified.length > maxChars 
+        ? simplified.substring(0, maxChars) 
+        : simplified;
+
+      console.log('✅ Text simplified for speech:', finalText.length, 'characters');
+      return finalText;
+    } catch (error) {
+      console.error('❌ Text simplification error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Process all transformations in parallel
+   * Returns: summary, mindMap, simplified text
+   */
+  async processAllTransformations(transcript) {
+    try {
+      console.log('\n🚀 Starting all AI transformations in parallel...\n');
+
+      const startTime = Date.now();
+
+      // Run all three operations simultaneously
+      const [summary, mindMap, simplified] = await Promise.all([
+        this.generateSummary(transcript),
+        this.generateMindMap(transcript),
+        this.simplifyText(transcript)
+      ]);
+
+      const duration = Date.now() - startTime;
+
+      console.log(`\n✅ All transformations completed in ${duration}ms\n`);
+
+      return {
+        summary,
+        mindMap,
+        simplifiedText: simplified,
+        duration,
+        success: true
+      };
+    } catch (error) {
+      console.error('❌ Error in processAllTransformations:', error.message);
+      throw error;
+    }
   }
 }
 
-async function processSegment(text) {
-  console.log(`\n?? Processing text segment with Grok (${text.length} chars)...\n`);
-
-  try {
-    const [simpleSummary, stepByStepExplanation, summary, mindMap] = await Promise.all([
-      generateSimpleSummary(text),
-      generateStepByStep(text),
-      generateSummary(text),
-      generateMindMap(text)
-    ]);
-
-    console.log('\n? Grok processing complete\n');
-
-    return {
-      simpleSummary,
-      stepByStepExplanation,
-      summary,
-      mindMap
-    };
-  } catch (error) {
-    console.error('? Error in Grok processSegment:', error.message);
-    throw error;
-  }
-}
-
-module.exports = {
-  processSegment
-};
+module.exports = GeminiService;

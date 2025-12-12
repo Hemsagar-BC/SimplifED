@@ -48,7 +48,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 const lectureRoutes = require('./routes/lecture.routes');
-const segmentRoutes = require('./routes/segment.routes');
+const segmentRoutes = require('./routes/segments.routes');
 
 app.use('/api/lectures', lectureRoutes);
 app.use('/api/segments', segmentRoutes);
