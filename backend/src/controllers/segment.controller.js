@@ -30,32 +30,50 @@ try {
 async function processTextSegmentLive(req, res) {
   try {
     const { text, userId, type } = req.body;
+    console.log('🔍 Received request body:', { textLength: text?.length, userId, type });
 
     if (!text || text.trim().length < 20) {
+      console.warn('⚠️ Text too short');
       return res.status(400).json({ error: 'Text too short for processing (minimum 20 characters)' });
     }
 
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
+    const finalUserId = userId || 'dev-user';
 
-    console.log(`📝 Processing live text segment (${text.length} chars)`);
+    console.log(`📝 Processing live text segment (${text.length} chars)...`);
 
-    // Process text with Gemini AI
-    const aiResults = await processSegment(text);
+    // Add timeout to prevent hanging (30 seconds max)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('AI processing timeout (30s)')), 30000)
+    );
+
+    // Process text with Gemini AI with timeout
+    const aiResults = await Promise.race([
+      processSegment(text),
+      timeoutPromise
+    ]);
 
     console.log('✅ Live text processing complete');
 
     // Return results to frontend for real-time display
-    res.status(200).json({
+    const response = {
       transcription: text,
-      simpleSummary: aiResults.simplified || '',
-      stepByStepExplanation: aiResults.stepByStep || '',
+      simpleSummary: aiResults.simpleSummary || '',
+      stepByStepExplanation: aiResults.stepByStepExplanation || '',
       clarityNotes: aiResults.clarityNotes || [],
+      summary: aiResults.summary || '',
+      mindMap: aiResults.mindMap || { mainTopic: 'No content', branches: [] }
+    };
+    console.log('✅ Returning response with fields:', Object.keys(response));
+    console.log('📊 Response data preview:', {
+      simpleSummary: response.simpleSummary.substring(0, 50),
+      stepByStepExplanation: response.stepByStepExplanation.substring(0, 50),
+      summary: response.summary.substring(0, 50),
+      mindMapTopic: response.mindMap.mainTopic
     });
+    res.status(200).json(response);
 
   } catch (error) {
-    console.error('❌ Error processing live text:', error);
+    console.error('❌ Error processing live text:', error.message);
     res.status(500).json({
       error: 'Failed to process text segment',
       message: error.message
@@ -203,6 +221,10 @@ async function transcribeAudio(audioFile) {
  */
 async function uploadAudioToStorage(audioFile, userId) {
   try {
+    if (!storage) {
+      console.log('⚠️ Firebase Storage not configured, skipping audio upload');
+      return null;
+    }
     const timestamp = Date.now();
     const fileName = `lectures/${userId}/audio-${timestamp}.webm`;
     const bucket = storage.bucket();
@@ -262,30 +284,34 @@ async function processTextSegment(req, res) {
     // This runs: simplify, clarity notes, key points, summary, step-by-step
     const aiResults = await processSegment(text);
     
-    // Create segment document in Firestore
-    // Path: lectures/{lectureId}/segments/{segmentIndex}
+    // Create segment document data
+    // Path (when Firestore enabled): lectures/{lectureId}/segments/{segmentIndex}
     const segmentData = {
       segmentIndex: parseInt(segmentIndex),
       timestamp: timestamp || new Date(),
       originalText: text,
-      ...aiResults,  // simplified, clarityNotes, keyPoints, summary, stepByStep
+      ...aiResults,  // simplified, clarityNotes, keyPoints, summary, step-by-step
       status: 'completed',
       createdAt: new Date()
     };
-    
-    // Save to Firestore
-    await db
-      .collection('lectures')
-      .doc(lectureId)
-      .collection('segments')
-      .doc(segmentIndex.toString())
-      .set(segmentData);
-    
-    // Update lecture document with latest segment count
-    await db.collection('lectures').doc(lectureId).update({
-      lastSegmentIndex: parseInt(segmentIndex),
-      updatedAt: new Date()
-    });
+
+    // Save to Firestore only if configured
+    if (db) {
+      await db
+        .collection('lectures')
+        .doc(lectureId)
+        .collection('segments')
+        .doc(segmentIndex.toString())
+        .set(segmentData);
+      
+      // Update lecture document with latest segment count
+      await db.collection('lectures').doc(lectureId).update({
+        lastSegmentIndex: parseInt(segmentIndex),
+        updatedAt: new Date()
+      });
+    } else {
+      console.log('⚠️ Firestore not configured, skipping segment persistence');
+    }
     
     console.log(`✅ Segment ${segmentIndex} processed and saved`);
     
@@ -313,6 +339,10 @@ async function processTextSegment(req, res) {
 async function getLectureSegments(req, res) {
   try {
     const { lectureId } = req.params;
+    
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore is not configured on the server' });
+    }
     
     // Get all segments from Firestore, ordered by index
     const segmentsSnapshot = await db
@@ -355,6 +385,10 @@ async function getLectureSegments(req, res) {
 async function getSegmentByIndex(req, res) {
   try {
     const { lectureId, segmentIndex } = req.params;
+    
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore is not configured on the server' });
+    }
     
     const segmentDoc = await db
       .collection('lectures')

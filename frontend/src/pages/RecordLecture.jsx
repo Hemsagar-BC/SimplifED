@@ -1,27 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Silk from '../components/common/Silk';
+import MindMapVisualization from '../components/lecture/MindMapVisualization';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const RecordLecture = () => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [recordingTime, setRecordingTime] = useState(0);
-  const [activeTab, setActiveTab] = useState('simple'); // 'simple', 'detailed', 'hearing'
+  const [activeTab, setActiveTab] = useState('simple');
   const [aiResults, setAiResults] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingSegments, setProcessingSegments] = useState([]);
+  const [language, setLanguage] = useState('en-US');
 
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
-  const lastProcessTimeRef = useRef(0);
   const currentTranscriptRef = useRef('');
+  const recordingStartTimeRef = useRef(null);
 
   // Initialize Web Speech API
   useEffect(() => {
@@ -34,19 +37,20 @@ const RecordLecture = () => {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = language; // Use selected language
 
     let interimTranscript = '';
     let finalTranscript = '';
 
     recognition.onstart = () => {
-      console.log('Listening started');
+      console.log('🎤 Listening started - start speaking!');
     };
 
     recognition.onresult = (event) => {
       interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcriptSegment = event.results[i][0].transcript;
+        console.log(`📝 Result ${i}: ${transcriptSegment} (final: ${event.results[i].isFinal})`);
         if (event.results[i].isFinal) {
           finalTranscript += transcriptSegment + ' ';
         } else {
@@ -56,17 +60,15 @@ const RecordLecture = () => {
       const fullTranscript = finalTranscript + interimTranscript;
       setTranscript(fullTranscript);
       currentTranscriptRef.current = fullTranscript;
-
-      // Process every 5 seconds if recording
-      const now = Date.now();
-      if (isRecording && now - lastProcessTimeRef.current > 5000 && fullTranscript.trim().length > 20) {
-        processTranscriptSegment(fullTranscript);
-        lastProcessTimeRef.current = now;
-      }
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech recognition error:', event.error);
+      console.error('❌ Speech recognition error:', event.error);
+      alert(`Microphone error: ${event.error}. Please check your microphone permissions.`);
+    };
+
+    recognition.onend = () => {
+      console.log('🛑 Listening stopped');
     };
 
     recognitionRef.current = recognition;
@@ -76,34 +78,67 @@ const RecordLecture = () => {
         recognitionRef.current.abort();
       }
     };
-  }, [isRecording]);
+  }, []);
+
+  // REMOVED: Process transcript every 5 seconds
+  // Now processing happens only when recording stops (in handleStopRecording)
 
   // Process transcript with Gemini
   const processTranscriptSegment = async (text) => {
-    if (!text || text.trim().length < 20) return;
+    if (!text || text.trim().length < 20) {
+      console.log('⏭️ Text too short, skipping processing');
+      return;
+    }
 
+    console.log(`⚡ Processing text segment (${text.length} chars)...`);
+    console.log('📤 Sending request body:', { textLength: text.length, userId: currentUser?.uid || 'dev-user', type: 'live-recording' });
     setIsProcessing(true);
     try {
+      const requestBody = {
+        text,
+        userId: currentUser?.uid || 'dev-user',
+        type: 'live-recording',
+      };
+      
+      console.log('🔗 Fetching from: http://localhost:3001/api/segments/process');
+      console.log('📦 Request body:', requestBody);
+      
       const response = await fetch('http://localhost:3001/api/segments/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await currentUser.getIdToken()}`,
         },
-        body: JSON.stringify({
-          text,
-          userId: currentUser.uid,
-          type: 'live-recording',
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error('Failed to process');
+      console.log('📥 Response received, status:', response.status);
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('❌ Server returned error:', response.status, error);
+        throw new Error(`Server error ${response.status}: ${error}`);
+      }
 
       const data = await response.json();
+      console.log('✅ AI Processing result received:', data);
+      console.log('📊 Data fields check:', {
+        hasSimpleSummary: !!data.simpleSummary,
+        hasStepByStep: !!data.stepByStepExplanation,
+        hasSummary: !!data.summary,
+        hasMindMap: !!data.mindMap,
+        hasClarityNotes: !!data.clarityNotes,
+      });
+      console.log('📄 Simple Summary content:', data.simpleSummary?.substring(0, 100));
+      console.log('🔍 Step by Step content:', data.stepByStepExplanation?.substring(0, 100));
+      console.log('📝 Summary content:', data.summary?.substring(0, 100));
+      console.log('🧠 Mind Map content:', data.mindMap);
+      
       setAiResults(data);
-      setProcessingSegments([...processingSegments, data]);
+      console.log('✨ AI Results state updated');
     } catch (error) {
-      console.error('Error processing segment:', error);
+      console.error('❌ Error processing segment:', error.message);
+      console.error('Error stack:', error.stack);
+      alert(`Processing error: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -112,97 +147,152 @@ const RecordLecture = () => {
   // Start Recording
   const handleStartRecording = async () => {
     try {
-      setTranscript('');
-      setAiResults(null);
-      setProcessingSegments([]);
-      setRecordingTime(0);
-      audioChunksRef.current = [];
-      lastProcessTimeRef.current = 0;
-
-      // Start Web Speech API
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
+      if (!recognitionRef.current) {
+        alert('Web Speech API not available. Please use a modern browser (Chrome, Edge, Safari).');
+        return;
       }
 
+      setTranscript('');
+      setAiResults(null);
+      setRecordingTime(0);
+      audioChunksRef.current = [];
+      currentTranscriptRef.current = '';
+
+      console.log('🚀 Starting recording...');
+
+      // Start Web Speech API
+      recognitionRef.current.start();
+
       // Start audio capture
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      
+      console.log('✅ Microphone access granted');
       streamRef.current = stream;
 
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event.error);
       };
 
       mediaRecorder.start();
       setIsRecording(true);
+      recordingStartTimeRef.current = Date.now();
+      console.log('📍 Recording started');
 
       // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Error accessing microphone. Please check permissions.');
+      console.error('❌ Error starting recording:', error);
+      alert(`Microphone Error: ${error.message}\n\nPlease:\n1. Check microphone permissions\n2. Ensure microphone is not in use\n3. Try a different browser`);
     }
   };
 
   // Stop Recording
   const handleStopRecording = async () => {
     try {
+      console.log('⏹️ Stop Recording clicked');
       setIsRecording(false);
       clearInterval(timerRef.current);
 
       // Stop Web Speech API
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+        console.log('🎤 Web Speech API stopped');
       }
 
       // Stop audio capture
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
+        console.log('🎙️ Media Recorder stopped');
 
         mediaRecorderRef.current.onstop = async () => {
+          console.log('📊 MediaRecorder onstop event fired');
           // Final processing
-          if (currentTranscriptRef.current.trim().length > 20) {
-            await processTranscriptSegment(currentTranscriptRef.current);
+          const finalTranscript = currentTranscriptRef.current.trim();
+          console.log('📝 Final transcript length:', finalTranscript.length);
+          console.log('📝 Final transcript preview:', finalTranscript.substring(0, 100));
+          
+          if (finalTranscript.length > 20) {
+            console.log('✅ Transcript long enough, starting AI processing...');
+            await processTranscriptSegment(finalTranscript);
+          } else {
+            console.warn('⚠️ Transcript too short for processing');
           }
 
           // Save lecture to Firestore
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          await saveLecture(audioBlob);
+          const audioURL = URL.createObjectURL(audioBlob);
+          
+          // Calculate duration from recording time
+          const recordingDuration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
+          
+          const lectureId = await saveLecture(
+            finalTranscript,
+            audioURL,
+            aiResults,
+            recordingDuration
+          );
+          console.log("Lecture saved with ID:", lectureId);
+          console.log("AI results that were saved:", aiResults);
+          
+          if (lectureId) {
+            console.log('🚀 Navigating to transcript view...');
+            navigate(`/lectures/${lectureId}`);
+          } else {
+            console.error('❌ Failed to save lecture, not navigating');
+          }
         };
       }
 
       // Stop all tracks
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
+        console.log('🔌 All audio tracks stopped');
       }
     } catch (error) {
       console.error('Error stopping recording:', error);
     }
   };
-
   // Save lecture to Firestore
-  const saveLecture = async (audioBlob) => {
+  const saveLecture = async (transcript, audioURL, results, duration) => {
     try {
+      console.log('💾 Saving lecture with AI results:', results);
       const lectureRef = await addDoc(collection(db, 'lectures'), {
         userId: currentUser.uid,
         title: `Lecture - ${new Date().toLocaleDateString()}`,
         type: 'recorded',
-        transcript: currentTranscriptRef.current,
-        simpleText: aiResults?.simpleSummary || '',
-        detailedSteps: aiResults?.stepByStepExplanation || '',
-        hearingNotes: aiResults?.clarityNotes || [],
-        duration: recordingTime,
+        transcript: transcript,
+        simpleSummary: results?.simpleSummary || '',
+        stepByStepExplanation: results?.stepByStepExplanation || '',
+        summary: results?.summary || '',
+        mindMap: results?.mindMap || { mainTopic: 'No content', branches: [] },
+        duration: duration,
         createdAt: serverTimestamp(),
         status: 'processed',
       });
 
       console.log('✅ Lecture saved:', lectureRef.id);
+      return lectureRef.id;
     } catch (error) {
       console.error('Error saving lecture:', error);
+      alert('Error saving lecture: ' + error.message);
+      return null;
     }
   };
 
@@ -212,6 +302,16 @@ const RecordLecture = () => {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Debug: Check API availability on mount
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    console.log('🔍 RecordLecture Component Mounted');
+    console.log('📱 Web Speech API Available:', !!SpeechRecognition);
+    console.log('🎤 MediaRecorder Available:', !!window.MediaRecorder);
+    console.log('🔌 getUserMedia Available:', !!navigator.mediaDevices?.getUserMedia);
+    console.log('👤 Current User:', currentUser?.email);
+  }, [currentUser]);
 
   return (
     <div className="min-h-screen relative bg-black overflow-hidden">
@@ -250,6 +350,32 @@ const RecordLecture = () => {
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
                 🎤 Live Transcript
               </h2>
+
+              {/* Language Selection */}
+              <div className="mb-4">
+                <label className="text-sm font-semibold text-blue-200 block mb-2">Select Language:</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  disabled={isRecording}
+                  className="w-full px-4 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white font-medium hover:bg-gray-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  <option value="en-US">🇺🇸 English (US)</option>
+                  <option value="en-GB">🇬🇧 English (UK)</option>
+                  <option value="es-ES">🇪🇸 Español</option>
+                  <option value="fr-FR">🇫🇷 Français</option>
+                  <option value="de-DE">🇩🇪 Deutsch</option>
+                  <option value="it-IT">🇮🇹 Italiano</option>
+                  <option value="pt-BR">🇧🇷 Português</option>
+                  <option value="ja-JP">🇯🇵 日本語</option>
+                  <option value="ko-KR">🇰🇷 한국어</option>
+                  <option value="zh-CN">🇨🇳 中文 (简体)</option>
+                  <option value="zh-TW">🇹🇼 中文 (繁體)</option>
+                  <option value="ru-RU">🇷🇺 Русский</option>
+                  <option value="ar-SA">🇸🇦 العربية</option>
+                  <option value="hi-IN">🇮🇳 हिन्दी</option>
+                </select>
+              </div>
 
               {/* Recording Controls */}
               <div className="flex gap-4 mb-6">
@@ -300,14 +426,15 @@ const RecordLecture = () => {
                 {[
                   { id: 'simple', label: 'Simple Text', icon: '📄' },
                   { id: 'detailed', label: 'Detailed Steps', icon: '🔍' },
-                  { id: 'hearing', label: 'Hearing Notes', icon: '👂' },
+                  { id: 'mindmap', label: 'Mind Map', icon: '🧠' },
+                  { id: 'summary', label: 'Summary', icon: '📝' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                       activeTab === tab.id
-                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                        ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-purple-500/50'
                         : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50'
                     }`}
                   >
@@ -329,9 +456,9 @@ const RecordLecture = () => {
                   <div>
                     {activeTab === 'simple' && (
                       <div>
-                        <h3 className="text-lg font-bold text-green-400 mb-3">📄 Simple Text</h3>
-                        <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
-                          {aiResults.simpleSummary || 'No content yet. Keep recording...'}
+                        <h3 className="text-lg font-bold text-green-400 mb-3">📄 Simple Explanation</h3>
+                        <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-base">
+                          {aiResults.simpleSummary || 'Stop recording to see dyslexia-friendly explanation...'}
                         </p>
                       </div>
                     )}
@@ -353,27 +480,29 @@ const RecordLecture = () => {
                       </div>
                     )}
 
-                    {activeTab === 'hearing' && (
+                    {activeTab === 'mindmap' && (
+                      <div className="h-[500px]">
+                        <MindMapVisualization mindMapData={aiResults.mindMap} />
+                      </div>
+                    )}
+
+                    {activeTab === 'summary' && (
                       <div>
-                        <h3 className="text-lg font-bold text-yellow-400 mb-3">👂 Hearing Notes</h3>
-                        <ul className="space-y-2">
-                          {aiResults.clarityNotes?.map((note, idx) => (
-                            <li key={idx} className="flex gap-3">
-                              <span className="text-yellow-400 font-bold flex-shrink-0">→</span>
-                              <span className="text-gray-200">{note}</span>
-                            </li>
-                          ))}
-                          {(!aiResults.clarityNotes || aiResults.clarityNotes.length === 0) && (
-                            <p className="text-gray-400">No notes yet. Keep recording...</p>
-                          )}
-                        </ul>
+                        <h3 className="text-lg font-bold text-emerald-400 mb-3">📝 Summary</h3>
+                        <div className="bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-500/30 rounded-xl p-5">
+                          <p className="text-gray-200 leading-relaxed whitespace-pre-wrap text-lg">
+                            {aiResults.summary || 'No summary yet. Keep recording...'}
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-400 text-center">
-                      Start recording to see AI-powered insights here ✨
+                      {isRecording 
+                        ? '🎤 Recording... tabs will populate after you stop'
+                        : 'Start recording to see AI-powered insights here ✨'}
                     </p>
                   </div>
                 )}

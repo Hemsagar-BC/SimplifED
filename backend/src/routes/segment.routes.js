@@ -27,14 +27,18 @@ const upload = multer({
 // FormData: { audio: File, transcript: string, userId: string, type: 'recorded'|'uploaded' }
 // OR JSON: { text: string, userId: string, type: 'live-recording' }
 router.post('/process', (req, res, next) => {
+  console.log('📍 /api/segments/process called');
+  console.log('Content-Type:', req.headers['content-type']);
   // Check if it's a file upload or JSON text
   if (req.headers['content-type']?.includes('multipart/form-data')) {
+    console.log('🎵 Processing as audio file...');
     // Handle file upload
     upload.single('audio')(req, res, (err) => {
       if (err) return res.status(400).json({ error: err.message });
       segmentController.processAudioFile(req, res);
     });
   } else {
+    console.log('📝 Processing as text...');
     // Handle JSON text
     segmentController.processTextSegmentLive(req, res);
   }

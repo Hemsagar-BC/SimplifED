@@ -9,6 +9,7 @@ import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import RecordLecture from './pages/RecordLecture';
 import UploadAudio from './pages/UploadAudio';
+import TranscriptView from './pages/TranscriptView';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/record-lecture" element={<RecordLecture />} />
             <Route path="/upload-audio" element={<UploadAudio />} />
+            <Route path="/lectures/:lectureId" element={<TranscriptView />} />
           </Routes>
         </Router>
       </AuthProvider>

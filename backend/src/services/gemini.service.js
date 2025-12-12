@@ -1,247 +1,203 @@
-// Google Gemini API service - All AI-powered features for EchoNotes
-// Features:
-//   1. simplifyText - Convert academic text to simple English (no jargon)
-//   2. generateStepByStep - Break down complex concepts into steps
-//   3. generateClarityNotes - Explain difficult terms with examples
-//   4. extractKeyPoints - Identify main concepts and definitions
-//   5. generateSummary - Create concise lecture summary
-// Model: gemini-1.5-flash for speed and cost-efficiency
-// All responses optimized for dyslexic readers (short sentences, clear language)
+// Grok AI Service � handles all lecture processing prompts
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fetchFn = globalThis.fetch;
 
-// Initialize Gemini with API key
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-/**
- * Simplify academic text to simple English suitable for dyslexic students
- * @param {string} text - Original lecture text (academic language)
- * @returns {Promise<string>} Simplified version with no jargon
- */
-async function simplifyText(text) {
-  // Prompt optimized for dyslexia-friendly output
-  // Rules: short sentences (max 15 words), common words, active voice
-  const prompt = `You are an expert at making academic content accessible for students with dyslexia.
-
-Simplify this lecture text using these STRICT rules:
-1. Use sentences of maximum 15 words
-2. Replace complex words with simple everyday alternatives
-3. Use active voice, not passive
-4. Break long paragraphs into 2-3 sentence chunks
-5. Explain any technical terms in parentheses
-6. Use "you" to make it personal and engaging
-7. NO jargon or academic language
-
-Original text:
-${text}
-
-Simplified version:`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim();
-  } catch (error) {
-    console.error('❌ Error simplifying text:', error);
-    throw new Error('Failed to simplify text');
-  }
+if (typeof fetchFn !== 'function') {
+  throw new Error('? Fetch API is not available. Run the server on Node.js 18+ to call Grok.');
 }
 
-/**
- * Generate step-by-step explanation of a concept
- * @param {string} concept - Complex concept or topic to explain
- * @returns {Promise<string>} Step-by-step breakdown
- */
-async function generateStepByStep(concept) {
-  // Create numbered steps with clear progression
-  const prompt = `Break down this concept into a simple step-by-step explanation for students with dyslexia.
+const apiKey = process.env.GROK_API_KEY;
+if (!apiKey) {
+  throw new Error('? GROK_API_KEY is not set in the backend .env file');
+}
+
+const GROK_API_URL = process.env.GROK_API_URL || 'https://api.x.ai/v1/chat/completions';
+const GROK_MODEL = process.env.GROK_MODEL || 'grok-beta';
+const DEFAULT_SYSTEM_PROMPT = 'You are an assistive AI that helps teachers simplify lecture transcripts for neurodivergent students.';
+
+console.log(`? Grok API key detected (length: ${apiKey.length})`);
+console.log(`? Using Grok model: ${GROK_MODEL}`);
+
+async function callGrok(prompt, { maxTokens = 600, temperature = 0.25, systemPrompt = DEFAULT_SYSTEM_PROMPT } = {}) {
+  const payload = {
+    model: GROK_MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt }
+    ],
+    temperature,
+    max_tokens: maxTokens
+  };
+
+  const response = await fetchFn(GROK_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const rawText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Grok API ${response.status}: ${rawText}`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (parseError) {
+    throw new Error(`Invalid JSON from Grok: ${rawText}`);
+  }
+
+  const message = data?.choices?.[0]?.message?.content;
+  if (!message) {
+    throw new Error('Grok API returned an empty response');
+  }
+
+  return message.trim();
+}
+
+async function generateSimpleSummary(text) {
+  const prompt = `Simplify this lecture text for students with dyslexia.
 
 Rules:
-1. Use numbered steps (Step 1, Step 2, etc.)
-2. Each step should be ONE simple action or idea
-3. Maximum 15 words per sentence
-4. Use everyday language, no jargon
-5. Include a simple example if helpful
-6. Make it visual and concrete
+- Use simple words (no jargon)
+- Keep sentences under 15 words
+- Use active voice
+- Explain technical terms in parentheses
 
-Concept to explain:
-${concept}
+Text: ${text}
 
-Step-by-step explanation:`;
+Simple summary:`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim();
+    console.log('?? Generating simple summary with Grok...');
+    const summary = await callGrok(prompt, { maxTokens: 350 });
+    console.log('? Simple summary generated');
+    return summary;
   } catch (error) {
-    console.error('❌ Error generating step-by-step:', error);
-    throw new Error('Failed to generate step-by-step explanation');
+    console.error('? Grok simple summary error:', error.message);
+    return text;
   }
 }
 
-/**
- * Generate clarity notes for difficult terms or concepts
- * Creates simple definitions with real-world examples
- * @param {string} text - Text containing terms that need clarification
- * @returns {Promise<Array>} Array of clarity notes: [{term, definition, example}]
- */
-async function generateClarityNotes(text) {
-  // Identify jargon and create side notes
-  const prompt = `Identify difficult terms or concepts in this text and create clarity notes for students.
-
-For each difficult term, provide:
-1. Simple definition (max 20 words)
-2. Real-world example or analogy
-3. Why it matters (1 sentence)
-
-Format as JSON array:
-[
-  {
-    "term": "the difficult word or phrase",
-    "definition": "simple explanation",
-    "example": "real-world example",
-    "whyItMatters": "why students should know this"
-  }
-]
-
-Text to analyze:
-${text}
-
-Clarity notes (JSON only, no other text):`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let jsonText = response.text().trim();
-    
-    // Remove markdown code blocks if present
-    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    
-    const clarityNotes = JSON.parse(jsonText);
-    return clarityNotes;
-  } catch (error) {
-    console.error('❌ Error generating clarity notes:', error);
-    // Return empty array instead of failing
-    return [];
-  }
-}
-
-/**
- * Extract key points and main concepts from lecture segment
- * @param {string} text - Lecture segment text
- * @returns {Promise<Array<string>>} Array of key points (short phrases)
- */
-async function extractKeyPoints(text) {
-  // Identify main ideas as bullet points
-  const prompt = `Extract the key points from this lecture segment.
+async function generateStepByStep(text) {
+  const prompt = `Break down this lecture into simple numbered steps for students with dyslexia.
 
 Rules:
-1. Each key point should be 5-10 words maximum
-2. Focus on main ideas, definitions, and important facts
-3. Use simple language
-4. Return as a simple list, one per line
-5. Maximum 5 key points
+- Start with "Step 1:", "Step 2:", etc.
+- Each step is one clear idea
+- Maximum 15 words per step
+- Use simple language
 
-Lecture text:
-${text}
+Text: ${text}
 
-Key points (one per line):`;
+Steps:`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
-    
-    // Split by newlines and filter empty lines
-    const keyPoints = text
-      .split('\n')
-      .map(line => line.replace(/^[-•*]\s*/, '').trim())
-      .filter(line => line.length > 0);
-    
-    return keyPoints;
+    console.log('?? Generating step-by-step with Grok...');
+    const steps = await callGrok(prompt, { maxTokens: 400 });
+    console.log('? Step-by-step generated');
+    return steps;
   } catch (error) {
-    console.error('❌ Error extracting key points:', error);
-    return [];
+    console.error('? Grok step-by-step error:', error.message);
+    return 'No steps available';
   }
 }
 
-/**
- * Generate overall summary of lecture segment
- * @param {string} text - Lecture text to summarize
- * @returns {Promise<string>} Concise summary (3-5 sentences)
- */
 async function generateSummary(text) {
-  // Create brief summary
-  const prompt = `Create a brief summary of this lecture segment for students with dyslexia.
+  const prompt = `Create a brief summary of this lecture in 3-5 sentences.
 
 Rules:
-1. 3-5 sentences maximum
-2. Each sentence max 15 words
-3. Capture the main message only
-4. Use simple, clear language
-5. Make it engaging and encouraging
+- Each sentence max 15 words
+- Simple, clear language
+- Focus on main message only
 
-Lecture text:
-${text}
+Text: ${text}
 
 Summary:`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().trim();
+    console.log('?? Generating lecture summary with Grok...');
+    const summary = await callGrok(prompt, { maxTokens: 400 });
+    console.log('? Summary generated');
+    return summary;
   } catch (error) {
-    console.error('❌ Error generating summary:', error);
-    throw new Error('Failed to generate summary');
+    console.error('? Grok summary error:', error.message);
+    return text.substring(0, 200) + '...';
   }
 }
 
-/**
- * Process complete segment with all AI features at once
- * @param {string} text - Raw transcribed text
- * @returns {Promise<object>} All processed data: {simplified, stepByStep, clarityNotes, keyPoints, summary}
- */
-async function processSegment(text) {
-  try {
-    console.log('🤖 Processing segment with Gemini...');
-    
-    // Run all AI processing in parallel for speed
-    const [simplified, clarityNotes, keyPoints, summary] = await Promise.all([
-      simplifyText(text),
-      generateClarityNotes(text),
-      extractKeyPoints(text),
-      generateSummary(text)
-    ]);
-    
-    // Generate step-by-step only if segment has concepts worth explaining
-    // Check if text has technical terms or complex ideas
-    let stepByStep = null;
-    if (text.length > 100 && (text.includes('process') || text.includes('concept') || text.includes('theory'))) {
-      stepByStep = await generateStepByStep(text);
+async function generateMindMap(text) {
+  const prompt = `Create a mind map structure from this lecture text.
+
+Return ONLY valid JSON in this exact format:
+{
+  "mainTopic": "Main topic in 2-5 words",
+  "branches": [
+    {
+      "label": "Branch name (2-4 words)",
+      "children": ["Sub-point 1", "Sub-point 2"]
     }
-    
-    console.log('✅ Segment processing complete');
-    
+  ]
+}
+
+Text: ${text}
+
+JSON only:`;
+
+  try {
+    console.log('?? Generating mind map with Grok...');
+    const rawJson = await callGrok(prompt, { maxTokens: 500, temperature: 0.15 });
+    const cleaned = rawJson
+      .replace(/```json\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+
+    const mindMap = JSON.parse(cleaned);
+
+    if (!mindMap.mainTopic || !Array.isArray(mindMap.branches)) {
+      throw new Error('Missing required fields in mind map JSON');
+    }
+
+    console.log('? Mind map generated:', mindMap.mainTopic);
+    return mindMap;
+  } catch (error) {
+    console.error('? Grok mind map error:', error.message);
     return {
-      simplified,
-      stepByStep,
-      clarityNotes,
-      keyPoints,
+      mainTopic: 'Lecture Content',
+      branches: []
+    };
+  }
+}
+
+async function processSegment(text) {
+  console.log(`\n?? Processing text segment with Grok (${text.length} chars)...\n`);
+
+  try {
+    const [simpleSummary, stepByStepExplanation, summary, mindMap] = await Promise.all([
+      generateSimpleSummary(text),
+      generateStepByStep(text),
+      generateSummary(text),
+      generateMindMap(text)
+    ]);
+
+    console.log('\n? Grok processing complete\n');
+
+    return {
+      simpleSummary,
+      stepByStepExplanation,
       summary,
-      processedAt: new Date()
+      mindMap
     };
   } catch (error) {
-    console.error('❌ Error processing segment:', error);
+    console.error('? Error in Grok processSegment:', error.message);
     throw error;
   }
 }
 
 module.exports = {
-  simplifyText,
-  generateStepByStep,
-  generateClarityNotes,
-  extractKeyPoints,
-  generateSummary,
-  processSegment  // All-in-one function
+  processSegment
 };
