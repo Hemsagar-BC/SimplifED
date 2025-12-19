@@ -24,8 +24,13 @@ export default function AudioRecorder({ onRecordingComplete, onTranscriptionUpda
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+      
+      // Mobile Android Chrome needs different language settings
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      recognitionRef.current.lang = isMobile ? 'en-US' : 'en-US';
       recognitionRef.current.maxAlternatives = 1;
+      
+      console.log('🎤 Web Speech API initialized for:', isMobile ? 'Mobile' : 'Desktop');
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
@@ -56,45 +61,55 @@ export default function AudioRecorder({ onRecordingComplete, onTranscriptionUpda
       };
 
       recognitionRef.current.onerror = (event) => {
+        console.log('🚨 Speech recognition error:', event.error);
+        
         // Silently handle 'no-speech' and 'aborted' - they're normal during continuous recognition
         if (event.error === 'no-speech' || event.error === 'aborted') {
           // Don't log - this is expected behavior when there's silence
           return;
         } else if (event.error === 'audio-capture') {
-          console.error('Microphone error - please check your microphone');
+          console.error('❌ Microphone error - please check your microphone');
+          alert('Microphone error. Please ensure microphone is working.');
           setIsListening(false);
         } else if (event.error === 'not-allowed') {
-          console.error('Microphone permission denied - please allow microphone access');
+          console.error('❌ Microphone permission denied');
+          alert('Microphone access denied. Please allow microphone permissions in browser settings.');
+          setIsListening(false);
+        } else if (event.error === 'network') {
+          console.error('❌ Network error - speech recognition requires internet connection');
+          alert('Internet connection required for speech recognition. Please check your connection.');
           setIsListening(false);
         } else {
-          console.error('Speech recognition error:', event.error);
+          console.error('❌ Speech recognition error:', event.error);
+          alert(`Speech recognition error: ${event.error}. Try again or use manual input.`);
         }
       };
 
       recognitionRef.current.onend = () => {
-        // Auto-restart if still recording (with longer delay to prevent rapid restarts)
+        console.log('🔄 Speech recognition ended. IsRecording:', isRecording, 'IsListening:', isListening);
+        
+        // Auto-restart if still recording (with delay to prevent rapid restarts)
         if (isListening && isRecording) {
           setTimeout(() => {
             if (isListening && isRecording && recognitionRef.current) {
               try {
                 recognitionRef.current.start();
+                console.log('✅ Speech recognition restarted');
               } catch (e) {
                 // Silently fail - might be already started
-                if (e.message.includes('already started')) {
-                  // Expected - ignore
-                } else {
+                if (!e.message.includes('already started')) {
                   console.log('Recognition restart issue:', e.message);
                 }
               }
             }
-          }, 500); // Increased delay to 500ms
+          }, 300); // 300ms delay for mobile compatibility
         } else {
           setIsListening(false);
         }
       };
 
       recognitionRef.current.onstart = () => {
-        console.log('Speech recognition active and listening...');
+        console.log('✅ Speech recognition active and listening...');
       };
     }
 

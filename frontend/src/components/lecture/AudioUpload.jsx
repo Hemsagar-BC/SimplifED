@@ -69,8 +69,11 @@ export default function AudioUpload({ onUploadComplete, onClose }) {
 
       setTranscriptionProgress('Processing audio with AI...');
 
-      // Send to backend API
-      const response = await fetch('http://localhost:8000/api/transcribe-audio', {
+      // Send to backend API - use environment variable
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+      const apiUrl = API_BASE_URL.replace('/api', '') + '/api/transcribe-audio';
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body: formData,
       });
