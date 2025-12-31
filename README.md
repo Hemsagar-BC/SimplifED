@@ -108,8 +108,6 @@ From a single lecture, get:
 
 ---
 
-## 🎬 Demo
-
 ---
 
 ## 🏗️ How It Works
