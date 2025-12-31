@@ -108,8 +108,6 @@ From a single lecture, get:
 
 ---
 
----
-
 ## 🏗️ How It Works
 
 ```mermaid
