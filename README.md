@@ -8,12 +8,12 @@
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.5-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react)](https://react.dev/)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16.1-FF6F00?style=flat&logo=tensorflow)](https://www.tensorflow.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.11-06B6D4?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
+[![Firebase](https://img.shields.io/badge/Firebase-10.0-FFCA28?style=flat&logo=firebase)](https://firebase.google.com/)
 [![Stars](https://img.shields.io/github/stars/VTG56/VoiceGuard-AI?style=social)](https://github.com/VTG56/VoiceGuard-AI)
 
-[Features](#-key-features) • [Demo](#-demo) • [Quick Start](#-quick-start) • [Tech Stack](#-technology-stack) • [Team](#-team)
+[Features](#-key-features) • [Quick Start](#-quick-start) • [Tech Stack](#-technology-stack) • [Documentation](#-documentation)
 
 </div>
 
@@ -293,8 +293,7 @@ simplifiED/
 │   └── TTS_FEATURE.md
 │
 ├── .gitignore
-├── start.ps1                   # PowerShell startup script
-└── start.bat                   # Batch startup script
+
 ```
 
 ---
@@ -333,18 +332,6 @@ Schools, colleges & EdTech
 
 ---
 
-## 👥 Team
-
-<div align="center">
-
-### Code Lunatics
-
-*Built with ❤️ for inclusive education*
-
-</div>
-
----
-
 ## 📝 Documentation
 
 - 📘 [Quick Start Guide](docs/QUICKSTART.md)
@@ -352,12 +339,6 @@ Schools, colleges & EdTech
 - 🌐 [Multi-Language Feature](docs/MULTILANGUAGE_FEATURE.md)
 - ⚡ [Ollama Performance Optimization](docs/OLLAMA_PERFORMANCE_OPTIMIZATION.md)
 - 🔊 [Text-to-Speech Feature](docs/TTS_FEATURE.md)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ---
 
